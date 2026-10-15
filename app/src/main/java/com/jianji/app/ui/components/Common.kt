@@ -342,6 +342,7 @@ fun SettingRow(
     modifier: Modifier = Modifier,
     subtitle: String? = null,
     trailingText: String? = null,
+    trailing: (@Composable () -> Unit)? = null,
     onClick: (() -> Unit)? = null,
 ) {
     Row(
@@ -380,7 +381,9 @@ fun SettingRow(
                 )
             }
         }
-        if (trailingText != null) {
+        if (trailing != null) {
+            trailing()
+        } else if (trailingText != null) {
             Text(
                 text = trailingText,
                 style = MaterialTheme.typography.bodyMedium,

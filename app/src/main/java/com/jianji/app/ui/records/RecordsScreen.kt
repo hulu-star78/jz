@@ -193,7 +193,8 @@ fun RecordsScreen(
                 item(key = "header-${group.date}") {
                     DayHeader(group = group)
                 }
-                items(group.items, key = { it.transaction.id }) { item ->
+                // key 加前缀：与日期头 key 隔离，避免未来引入其他 id 键时冲突
+                items(group.items, key = { "txn-${it.transaction.id}" }) { item ->
                     JianJiCard(onClick = { onTransactionClick(item.transaction.id) }) {
                         TransactionRow(item = item)
                     }

@@ -176,7 +176,9 @@ fun HomeScreen(
                 }
             }
         } else {
-            items(state.recent, key = { it.transaction.id }) { item ->
+            // 注意：key 必须加类型前缀——交易 id 与分类 id 可能相同，
+            // 同一 LazyColumn 内不同 items 块共用 key 空间，裸 id 会冲突崩溃
+            items(state.recent, key = { "txn-${it.transaction.id}" }) { item ->
                 JianJiCard(onClick = { onTransactionClick(item.transaction.id) }) {
                     TransactionRow(item = item, showDate = true)
                 }
@@ -198,7 +200,7 @@ fun HomeScreen(
                 }
             }
         } else {
-            items(state.categoryShares, key = { it.categoryId ?: -1L }) { share ->
+            items(state.categoryShares, key = { "cat-${it.categoryId ?: -1L}" }) { share ->
                 JianJiCard {
                     CategoryShareRow(share = share, total = state.expense)
                 }

@@ -22,6 +22,8 @@ import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockClock
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.Wallet
@@ -32,6 +34,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -45,10 +48,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jianji.app.data.backup.BackupCounts
+import com.jianji.app.data.lock.BiometricAppLockAuthenticator
 import com.jianji.app.data.settings.ThemeMode
+import com.jianji.app.domain.lock.LockCapability
 import com.jianji.app.ui.LocalAppContainer
 import com.jianji.app.ui.appViewModelFactory
 import com.jianji.app.ui.components.JianJiCard
@@ -83,7 +89,14 @@ fun ProfileScreen(
         },
     )
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
+    val appLockEnabled by viewModel.appLockEnabled.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // 应用锁验证器（系统 BiometricPrompt）
+    val activity = context as? FragmentActivity
+    val authenticator = remember(activity) {
+        BiometricAppLockAuthenticator { activity }
+    }
 
     var showThemeDialog by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
@@ -224,6 +237,50 @@ fun ProfileScreen(
                     subtitle = "浅色 / 深色 / 跟随系统",
                     trailingText = themeMode.label(),
                     onClick = { showThemeDialog = true },
+                )
+            }
+        }
+
+        Spacer(Modifier.height(Dimens.spaceL))
+        SettingsGroupTitle("安全")
+        JianJiCard {
+            Column {
+                // 应用锁：开启前先通过一次系统验证（防止他人偷关）
+                val capability = authenticator.capability()
+                SettingRow(
+                    icon = Icons.Filled.Lock,
+                    title = "应用锁",
+                    subtitle = if (capability == LockCapability.NONE) {
+                        "设备未设置指纹或锁屏密码，无法开启"
+                    } else {
+                        "打开应用时需要指纹或锁屏密码验证"
+                    },
+                    trailing = {
+                        Switch(
+                            checked = appLockEnabled,
+                            enabled = capability != LockCapability.NONE,
+                            onCheckedChange = { target ->
+                                if (!target) {
+                                    viewModel.setAppLockEnabled(false)
+                                    showMessage("应用锁已关闭")
+                                } else {
+                                    authenticator.authenticate(
+                                        onSuccess = {
+                                            viewModel.setAppLockEnabled(true)
+                                            showMessage("应用锁已开启")
+                                        },
+                                        onFailure = { message -> showMessage(message) },
+                                    )
+                                }
+                            },
+                        )
+                    },
+                )
+                SettingRow(
+                    icon = Icons.Filled.LockClock,
+                    title = "后台返回重新锁定",
+                    subtitle = "离开超过 60 秒后返回需重新验证",
+                    trailingText = if (appLockEnabled) "已开启" else "未开启",
                 )
             }
         }

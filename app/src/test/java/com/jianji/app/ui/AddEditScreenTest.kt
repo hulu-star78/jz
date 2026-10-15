@@ -190,16 +190,30 @@ class AddEditScreenTest {
      * 保存触发后的两种合法结果：
      * - 已落库（校验金额）；
      * - 写事务进行中（Robolectric 下保存协程不恢复，数据库锁定），停留在“保存中…”。
+     * 轮询等待以容忍协程调度时序波动。
      */
     private fun assertSaveTriggered(expectedAmountMinor: Long) {
-        val transactions = try {
-            runBlocking { container.transactionRepository.observeAll().first() }
-        } catch (e: android.database.sqlite.SQLiteException) {
-            emptyList()
+        var transactions: List<com.jianji.app.domain.model.Transaction> = emptyList()
+        var triggered = false
+        repeat(50) {
+            transactions = try {
+                runBlocking { container.transactionRepository.observeAll().first() }
+            } catch (e: android.database.sqlite.SQLiteException) {
+                emptyList() // 写事务进行中
+            }
+            val savingShown = composeRule
+                .onAllNodesWithText("保存中…")
+                .fetchSemanticsNodes()
+                .isNotEmpty()
+            if (transactions.isNotEmpty() || savingShown) {
+                triggered = true
+                return@repeat
+            }
+            composeRule.waitForIdle()
+            Thread.sleep(100)
         }
-        if (transactions.isEmpty()) {
-            composeRule.onNodeWithText("保存中…").assertExists()
-        } else {
+        assertTrue("点击保存后应触发保存（落库或保存中状态）", triggered)
+        if (transactions.isNotEmpty()) {
             assertEquals(
                 Money.fromMinor(expectedAmountMinor),
                 transactions.first().amount,

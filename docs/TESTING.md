@@ -52,12 +52,20 @@ YYYY-MM 解析与格式化、非法格式拒绝、非法区间抛错、
 ### Compose UI（2 例）
 - HomeScreenTest：真实 Room + 预置数据渲染首页，校验汇总数字
   （965.00 / 1,000.00 / 35.00）、最近账单、分类概览；
+  回归用例 `categorySectionComposesWithoutKeyCollision`（LazyColumn 键冲突崩溃：
+  交易 id 与分类 id 碰撞，已验证无修复时失败、有修复时通过）。
 - AddEditScreenTest：保存错误反馈（无金额/未选分类的具体文案）、
-  分类选中后保存触发（落库或保存中）、收起键隐藏键盘、点击金额区唤回键盘、
-  收起后右上角保存按钮仍可点击、4×4 键盘渲染与 00/清空/键盘保存键行为。
+  分类选中后保存触发（落库或保存中，轮询容忍时序波动）、收起键隐藏键盘、
+  点击金额区唤回键盘、收起后右上角保存按钮仍可点击、
+  4×4 键盘渲染与 00/清空/键盘保存键行为。
 - AddEditTransactionViewModelTest：save() 在表单不完整时返回具体错误码
   （AMOUNT_NOT_POSITIVE / CATEGORY_REQUIRED），补齐后可正常落库；
   `00` 键输入规则（补足两位小数、整数位上限 10 位）、`清空` 键清空输入。
+
+### 应用锁（SettingsRepositoryTest 3 例 + AppLockGateTest 4 例）
+- SettingsRepositoryTest：应用锁默认关闭、开关读写、主题模式不受影响；
+- AppLockGateTest（假验证器）：锁关闭直接放行、开启自动验证放行、
+  失败展示锁屏与错误并可重试解锁、无验证能力时禁用解锁按钮并提示。
 
 ### 备份（BackupSerializerTest 10 例 + BackupManagerTest 5 例）
 - 序列化：全字段往返一致、Long 边界金额（MAX/MIN_VALUE）零损失、
@@ -79,7 +87,7 @@ YYYY-MM 解析与格式化、非法格式拒绝、非法区间抛错、
 ```
 > Task :app:testDebugUnitTest :app:assembleDebug --rerun-tasks
 BUILD SUCCESSFUL
-110 tests completed, 0 failed, 0 errors
+118 tests completed, 0 failed, 0 errors
 ```
 
 同时 `:app:assembleDebug` 成功产出 `app-debug.apk`（19.1MB），schema 导出至

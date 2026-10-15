@@ -86,6 +86,29 @@
 - 退格移至顶行右侧，收起键盘移至右下角
 - 两处保存入口行为一致；测试以 testTag（save_top / save_keypad）区分
 
+### 应用锁：指纹 / 系统密码验证（本阶段新增）
+- 新增依赖 `androidx.biometric:biometric:1.1.0`；`MainActivity` 基类改为
+  `FragmentActivity`（BiometricPrompt 构造要求；Compose 扩展完全兼容）
+- 锁闸 `AppLockGate`：未解锁时应用内容完全不可见；进入自动验证，失败可重试
+- `AppLockAuthenticator` 接口（可测接缝）+ `BiometricAppLockAuthenticator` 实现：
+  能力自适应（API 30+ 组合验证 / 24-29 单一能力 / NONE 提示），
+  异常时降级重试，全程不接触用户密码
+- 设置：`appLockEnabled`（默认关）；「我的 → 安全」分组含应用锁开关
+  （开启前先过一次系统验证）与「后台返回重新锁定」说明（离开超 60 秒重验）
+- 锁定时 `FLAG_SECURE`（禁截屏/防最近任务预览）
+- 已知边界：只锁 UI 入口，数据库文件未加密（SQLCipher 未实现）
+
+### 紧急修复：首页 LazyColumn 键冲突崩溃（本阶段）
+- **现象**：录入数据后返回首页崩溃；连续录入两笔必崩（用户实测 + 雷电模拟器复现）
+- **根因**：首页 LazyColumn 中「最近账单」用 `transaction.id` 作 key、
+  「支出分类」用 `categoryId` 作 key，两块 items 共用同一 key 空间；
+  预置分类占用 id 1-15，第 2 笔交易 id=2 与「交通」分类 id=2 碰撞 →
+  `IllegalArgumentException: Key "2" was already used`
+- **修复**：两块 key 分别加 `txn-` / `cat-` 前缀隔离；明细页交易 key 同步加前缀防御
+- **回归测试**：`HomeScreenTest.categorySectionComposesWithoutKeyCollision`
+  （滚动到分类区使其组合；已验证无修复时该测试失败、有修复时通过）
+- **复盘**：Lazy 列表多块 items 禁止裸用同类 id 作 key，必须加类型前缀
+
 ## 进行中
 
 - 无。

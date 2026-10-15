@@ -1,10 +1,13 @@
 package com.jianji.app.ui
 
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.performScrollToNode
 import androidx.test.core.app.ApplicationProvider
 import com.jianji.app.di.AppContainer
 import com.jianji.app.domain.model.CategoryType
@@ -102,5 +105,42 @@ class HomeScreenTest {
             assertTrue("分类概览应展示「餐饮」", nodes.isNotEmpty())
         }
         composeRule.onNodeWithText("午饭", substring = true).assertExists()
+    }
+
+    /**
+     * 回归测试：LazyColumn 键冲突崩溃。
+     * 预置分类占用 id 1-15，首笔交易 id=1 与「餐饮」分类 id=1 数值相同，
+     * 若两块 items 裸用 id 作 key 会抛 “Key was already used” 崩溃。
+     * 滚动到分类概览区使其被组合，验证不再崩溃。
+     */
+    @Test
+    fun categorySectionComposesWithoutKeyCollision() {
+        composeRule.setContent {
+            JianJiTheme(darkTheme = false) {
+                CompositionLocalProvider(LocalAppContainer provides container) {
+                    HomeScreen(
+                        onAddClick = {},
+                        onSeeAllBills = {},
+                        onBudgetClick = {},
+                        onTransactionClick = {},
+                    )
+                }
+            }
+        }
+        composeRule.waitForIdle()
+        composeRule.waitUntil(timeoutMillis = 10_000) {
+            composeRule.onAllNodesWithText("最近账单").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        // 滚动到支出分类区（折叠屏外，滚动后才组合）
+        composeRule.onNode(hasScrollAction())
+            .performScrollToNode(hasText("支出分类"))
+        composeRule.waitForIdle()
+
+        // 分类区正常渲染（修复前此处因键冲突崩溃）
+        composeRule.onNodeWithText("支出分类").assertIsDisplayed()
+        composeRule.onAllNodesWithText("餐饮").fetchSemanticsNodes().let { nodes ->
+            assertTrue("分类概览应展示「餐饮」", nodes.isNotEmpty())
+        }
     }
 }

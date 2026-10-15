@@ -31,6 +31,14 @@ class ProfileViewModel(
         viewModelScope.launch { settingsRepository.setThemeMode(mode) }
     }
 
+    /** 应用锁开关（默认关闭）。 */
+    val appLockEnabled: StateFlow<Boolean> = settingsRepository.appLockEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun setAppLockEnabled(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setAppLockEnabled(enabled) }
+    }
+
     /** 导出全部数据为 JSON 文本。 */
     suspend fun exportJson(): String = backupRepository.exportJson()
 
